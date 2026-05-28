@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>信用需給アナライザー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d12;--bg2:#111520;--bg3:#181d2a;--card:#141928;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --accent:#4af0b0;--accent2:#3dd4f5;--amber:#f0a84a;--danger:#f05a5a;
+  --text:#e8ecf4;--text2:#8892a4;--text3:#545e6f;
+  --mono:'DM Mono',monospace;--sans:'Noto Sans JP',sans-serif;--disp:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+
+.hdr{position:sticky;top:0;z-index:200;background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
+.logo{font-family:var(--disp);font-size:18px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(74,240,176,0.1);color:var(--accent);border:1px solid rgba(74,240,176,0.25)}
+
+.main{max-width:960px;margin:0 auto;padding:24px 16px;display:flex;flex-direction:column;gap:16px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.card.glow{border-color:rgba(74,240,176,0.3)}
+.card-hdr{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);flex-wrap:wrap}
+.step-num{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:rgba(74,240,176,0.1);border:1px solid rgba(74,240,176,0.3);color:var(--accent);font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center}
+.step-num.done{background:var(--accent);color:#000;border-color:var(--accent)}
+.card-title{font-size:14px;font-weight:500;flex:1}
+.card-sub{font-size:12px;color:var(--text2);width:100%;padding-left:38px;margin-top:-4px}
+.card-body{padding:20px}
+
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:5px}
+input[type=text],input[type=number]{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:10px 13px;width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none}
+input:focus{border-color:var(--accent)}
+input::placeholder{color:var(--text3)}
+.field{display:flex;flex-direction:column;gap:5px}
+
+.btn{background:rgba(74,240,176,0.1);border:1px solid rgba(74,240,176,0.3);color:var(--accent);border-radius:8px;padding:10px 18px;font-family:var(--sans);font-size:13px;cursor:pointer;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:rgba(74,240,176,0.18);border-color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#000;font-weight:700;border-color:var(--accent);width:100%;height:50px;font-size:15px;justify-content:center;border-radius:10px}
+.btn-primary:hover{background:#6af7c0}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-sm{background:none;border:1px solid var(--border2);color:var(--text2);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent)}
+
+.ticker-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.ticker-row .field{flex:1;min-width:140px}
+.info-box{margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.info-item{display:flex;flex-direction:column;gap:3px}
+.info-lbl{font-size:11px;color:var(--text3)}
+.info-val{font-family:var(--mono);font-size:17px;color:var(--accent);font-weight:500}
+.info-val.sm{font-size:13px;color:var(--text)}
+.status{font-size:12px;color:var(--text2);margin-top:8px;min-height:16px}
+.status.loading{color:var(--accent2)}.status.error{color:var(--danger)}.status.success{color:var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{width:13px;height:13px;border:2px solid rgba(74,240,176,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+
+.drop-zone{border:2px dashed var(--border2);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(74,240,176,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:32px;margin-bottom:10px}
+.drop-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.drop-sub{font-size:12px;color:var(--text2)}
+.thumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.thumb{position:relative;width:110px;height:82px;border-radius:8px;overflow:hidden;border:1px solid var(--border2)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .rm{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.thumb .tg{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;padding:2px 5px;border-radius:3px;font-family:var(--mono)}
+
+.prog-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:14px}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s ease}
+.log-box{margin-top:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--text2);max-height:100px;overflow-y:auto;line-height:1.9}
+.log-ok{color:var(--accent)}.log-ng{color:var(--danger)}.log-ts{color:var(--text3)}
+
+.results{display:none}.results.show{display:flex;flex-direction:column;gap:16px}
+
+/* Indicator table — image style */
+.idx-table{width:100%;border-collapse:collapse}
+.idx-table thead tr{border-bottom:1px solid var(--border2)}
+.idx-table th{padding:10px 16px;text-align:left;font-size:11px;color:var(--text3);font-weight:400;font-family:var(--mono);letter-spacing:.04em}
+.idx-table th:last-child{text-align:right}
+.idx-table td{padding:14px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+.idx-table tr:last-child td{border-bottom:none}
+.idx-table td:last-child{text-align:right;font-family:var(--mono);font-size:19px;font-weight:500}
+.idx-num{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--border2);color:var(--text3);font-size:11px;font-family:var(--mono);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px;vertical-align:middle}
+.idx-label{font-size:13px;color:var(--text);vertical-align:middle}
+.c-acc{color:var(--accent)}.c-amb{color:var(--amber)}.c-base{color:var(--text)}
+
+/* Summary grid */
+.sum-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:600px){.sum-grid{grid-template-columns:repeat(4,1fr)}}
+.sum-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.sum-lbl{font-size:11px;color:var(--text2);margin-bottom:5px;line-height:1.4}
+.sum-val{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--text)}
+.sum-val.acc{color:var(--accent)}.sum-val.amb{color:var(--amber)}
+.sum-unit{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Detail tables */
+.det-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.det{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;min-width:420px}
+table.det th{color:var(--text3);font-weight:400;font-family:var(--mono);padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);font-size:11px;line-height:1.4}
+table.det th:first-child{text-align:left}
+table.det td{padding:9px 10px;text-align:right;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:12px;color:var(--text2)}
+table.det td:first-child{text-align:left;color:var(--text)}
+table.det tr:hover td{background:rgba(255,255,255,.02)}
+table.det tr.tot td{color:var(--text);font-weight:500;border-top:1px solid var(--border2);border-bottom:none}
+.pos{color:#6af}.neg{color:var(--amber)}.ok-c{color:var(--accent)}.ng-c{color:var(--danger)}
+
+/* Check badge */
+.chk-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-family:var(--mono);font-weight:500}
+.chk-ok{background:rgba(74,240,176,.1);color:var(--accent);border:1px solid rgba(74,240,176,.25)}
+.chk-ng{background:rgba(240,90,90,.1);color:var(--danger);border:1px solid rgba(240,90,90,.25)}
+
+/* Raw editor */
+.raw-editor{display:none}.raw-editor.show{display:block;margin-top:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.raw{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;min-width:620px}
+table.raw th{background:var(--bg3);color:var(--text3);padding:7px 5px;font-weight:400;font-family:var(--mono);border-bottom:1px solid var(--border)}
+table.raw td{padding:3px;border-bottom:1px solid rgba(255,255,255,.03)}
+table.raw td input{background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 4px;width:76px;outline:none}
+table.raw td input:focus{border-bottom-color:var(--accent);background:rgba(74,240,176,.04)}
+table.raw td input.date-input{width:68px}
+
+.period-lbl{font-size:12px;color:var(--text2);font-family:var(--mono)}
+
+@media(max-width:480px){
+  .hdr{padding:12px 14px}.logo{font-size:16px}
+  .main{padding:14px 10px;gap:12px}
+  .card-body{padding:14px}
+  .card-hdr{padding:12px 14px}
+  .btn-primary{height:46px;font-size:14px}
+  .idx-table td:last-child{font-size:16px}
+  .idx-table td{padding:12px 12px}
+  .sum-val{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">信用需給アナライザー</div>
+  <div class="badge">AI POWERED</div>
+</div>
+
+<div class="main">
+
+<!-- STEP 1: Ticker -->
+<div class="card glow" id="c1">
+  <div class="card-hdr">
+    <div class="step-num" id="n1">1</div>
+    <div class="card-title">銘柄コードを入力</div>
+    <div class="card-sub">kabutan.jp から発行済み株式数を自動取得します</div>
+  </div>
+  <div class="card-body">
+    <div class="ticker-row">
+      <div class="field">
+        <label>銘柄コード（4桁）</label>
+        <input type="text" id="tickerCode" placeholder="例: 4062 / 5247" maxlength="10" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <button class="btn" onclick="fetchShares()" id="fetchBtn" style="height:40px;margin-top:22px">
+        <span id="fetchIco">🔍</span> 取得
+      </button>
+    </div>
+    <div class="status" id="fetchSt"></div>
+    <div class="info-box" id="stockInfo" style="display:none">
+      <div class="info-item">
+        <div class="info-lbl">銘柄名</div>
+        <div class="info-val sm" id="sName">—</div>
+      </div>
+      <div class="info-item">
+        <div class="info-lbl">発行済み株式数</div>
+        <div class="info-val" id="sShares">—</div>
+      </div>
+      <div class="info-item"><div class="info-lbl">単位</div><div class="info-val sm">万株</div></div>
+      <div class="field" style="min-width:130px">
+        <label>手動修正（万株）</label>
+        <input type="number" id="sharesManual" placeholder="14072.4" step="0.1">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2: Upload -->
+<div class="card" id="c2">
+  <div class="card-hdr">
+    <div class="step-num" id="n2">2</div>
+    <div class="card-title">スクリーンショットをアップロード</div>
+    <div class="card-sub">買い約定・売り約定の画像（複数可）</div>
+  </div>
+  <div class="card-body">
+    <div class="drop-zone" id="dropzone">
+      <input type="file" accept="image/*" multiple onchange="handleFiles(this.files)">
+      <div class="drop-icon">📊</div>
+      <div class="drop-title">画像をドロップ、またはタップして選択</div>
+      <div class="drop-sub">買い約定・売り約定の両画像をアップロード</div>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+</div>
+
+<!-- STEP 3: Analyze -->
+<div class="card" id="c3">
+  <div class="card-hdr">
+    <div class="step-num" id="n3">3</div>
+    <div class="card-title">AI 分析</div>
+    <div class="card-sub">画像からデータを読み取り、需給指標を自動計算</div>
+  </div>
+  <div class="card-body">
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()" disabled>
+      📈 分析を開始する
+    </button>
+    <div class="prog-bar" id="progBar" style="display:none">
+      <div class="prog-fill" id="progFill"></div>
+    </div>
+    <div class="log-box" id="logBox" style="display:none"></div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results" id="results">
+
+  <!-- Raw data -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-num done">✓</div>
+      <div class="card-title" style="flex:1">読み取りデータ（千株）</div>
+      <span class="chk-badge chk-ok" id="chkBadge">✓ 検算OK</span>
+      <button class="btn-sm" onclick="toggleEd()">✏️ 編集</button>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span class="period-lbl" id="periodLbl">—</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="chkDetail"></span>
+      </div>
+      <div class="raw-editor" id="rawEd">
+        <table class="raw">
+          <thead><tr>
+            <th>日付</th><th>現物買</th><th>新規買</th><th>返済買</th>
+            <th>現物売</th><th>新規売</th><th>返済売</th><th>空売り</th><th></th>
+          </tr></thead>
+          <tbody id="rawTbody"></tbody>
+        </table>
+        <button class="btn" style="margin-top:10px;font-size:12px" onclick="renderResults()">再計算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Net summary -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-num done">✓</div>
+      <div class="card-title">ネット累計（万株）</div>
+    </div>
+    <div class="card-body">
+      <div class="sum-grid" id="sumGrid"></div>
+    </div>
+  </div>
+
+  <!-- Indicators — image style -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-num done">✓</div>
+      <div class="card-title">需給指標 — 累計値</div>
+    </div>
+    <div class="card-body" style="padding-top:6px;padding-bottom:6px">
+      <table class="idx-table">
+        <thead><tr><th>#　指標</th><th>累計値</th></tr></thead>
+        <tbody id="idxBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Daily net -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-num done">✓</div>
+      <div class="card-title">日次ネット（万株）</div>
+    </div>
+    <div class="card-body">
+      <div class="det-wrap">
+        <table class="det">
+          <thead><tr>
+            <th>日付</th><th>現物ネット</th><th>買い残ネット</th><th>売り残ネット</th><th>検算</th>
+          </tr></thead>
+          <tbody id="tbNet"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily indicators -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-num done">✓</div>
+      <div class="card-title">日次指標（単日）</div>
+    </div>
+    <div class="card-body">
+      <div class="det-wrap">
+        <table class="det">
+          <thead><tr>
+            <th>日付</th>
+            <th>①現物/買残<br>（倍）</th>
+            <th>②新規買<br>/発行済%</th>
+            <th>③現物ネット<br>/発行済%</th>
+            <th>④買残ネット<br>/発行済%</th>
+            <th>⑤売残ネット<br>/発行済%</th>
+          </tr></thead>
+          <tbody id="tbIdx"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /results -->
+</div><!-- /main -->
+
+<script>
+const API='https://api.anthropic.com/v1/messages';
+let images=[],days=[],sharesMan=0;
+
+// Drag & Drop
+const dz=document.getElementById('dropzone');
+['dragover','dragenter'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag')}));
+['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag')}));
+dz.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));
+
+function handleFiles(files){
+  [...files].forEach(f=>{
+    if(!f.type.startsWith('image/'))return;
+    const r=new FileReader();
+    r.onload=e=>{images.push({file:f,base64:e.target.result.split(',')[1],url:e.target.result});renderThumbs();checkReady()};
+    r.readAsDataURL(f);
+  });
+}
+function renderThumbs(){
+  document.getElementById('thumbs').innerHTML=images.map((img,i)=>
+    `<div class="thumb"><img src="${img.url}">
+    <button class="rm" onclick="images.splice(${i},1);renderThumbs();checkReady()">×</button>
+    <div class="tg">${i+1}</div></div>`).join('');
+}
+
+// Fetch shares from kabutan
+async function fetchShares(){
+  const code=document.getElementById('tickerCode').value.trim();
+  if(!code){setSt('fetchSt','銘柄コードを入力してください','error');return;}
+  setSt('fetchSt','kabutan.jp を検索中...','loading');
+  const btn=document.getElementById('fetchBtn');
+  btn.disabled=true;
+  document.getElementById('fetchIco').innerHTML='<span class="spin"></span>';
+  try{
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',max_tokens:500,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:
+          `kabutan.jp で日本株 証券コード${code} を調べてください。
+URL: https://kabutan.jp/stock/?code=${code}
+銘柄名と発行済み株式数（万株）を取得してください。
+
+JSONのみ返してください（他の文章不要）:
+{"name":"銘柄名","shares_man":万株の数値}`
+        }]
+      })
+    });
+    const data=await res.json();
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    const m=txt.match(/\{"name"[^}]+\}/);
+    if(!m)throw new Error('解析失敗');
+    const info=JSON.parse(m[0]);
+    sharesMan=parseFloat(info.shares_man);
+    document.getElementById('sName').textContent=info.name||code;
+    document.getElementById('sShares').textContent=sharesMan.toLocaleString('ja',{maximumFractionDigits:1});
+    document.getElementById('sharesManual').value=sharesMan;
+    document.getElementById('stockInfo').style.display='flex';
+    setSt('fetchSt','取得完了 ✓','success');
+    document.getElementById('n1').className='step-num done';
+    document.getElementById('n1').textContent='✓';
+    checkReady();
+  }catch(e){
+    setSt('fetchSt','取得失敗 — 手動で発行済み株式数を入力してください','error');
+    document.getElementById('stockInfo').style.display='flex';
+  }finally{
+    btn.disabled=false;document.getElementById('fetchIco').textContent='🔍';
+  }
+}
+document.getElementById('sharesManual').addEventListener('input',function(){
+  const v=parseFloat(this.value);
+  if(v>0){sharesMan=v;document.getElementById('sShares').textContent=v.toLocaleString('ja',{maximumFractionDigits:1});document.getElementById('stockInfo').style.display='flex';checkReady();}
+});
+document.getElementById('tickerCode').addEventListener('keydown',e=>{if(e.key==='Enter')fetchShares()});
+function checkReady(){document.getElementById('analyzeBtn').disabled=!(images.length>0&&sharesMan>0)}
+
+// Analyze
+async function analyze(){
+  const mv=parseFloat(document.getElementById('sharesManual').value);
+  if(mv>0)sharesMan=mv;
+  if(!images.length||!sharesMan)return;
+  document.getElementById('analyzeBtn').disabled=true;
+  document.getElementById('progBar').style.display='block';
+  document.getElementById('logBox').style.display='block';
+  document.getElementById('results').className='results';
+  log('AI解析を開始...','ok');prog(10);
+
+  const imgBlocks=images.flatMap((img,i)=>[
+    {type:'image',source:{type:'base64',media_type:img.file.type,data:img.base64}},
+    {type:'text',text:`上記は画像${i+1}です。`}
+  ]);
+  const prompt=`以下は日本株の信用取引データ（証券アプリのスクリーンショット）です。
+画像の表から全営業日のデータを正確に読み取ってください。
+
+買い約定: 現物買、新規買（信用新規）、返済買（信用返済）
+売り約定: 現物売、新規売（信用新規）、返済売（信用返済）、空売り
+
+JSONのみ返答（マークダウン・説明文不要）:
+{"days":[{"date":"26/4/24","gb":8023.5,"kb":2194.5,"hb":860.6,"gs":3961.8,"ks":862.3,"hs":2135.1,"ur":4119.4}]}
+
+date=日付, gb=現物買, kb=新規買, hb=返済買, gs=現物売, ks=新規売, hs=返済売, ur=空売り
+単位：千株（表示数値そのまま）。日付は新しい順でOK。`;
+
+  try{
+    log('画像データを送信中...','ok');prog(25);
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
+        messages:[{role:'user',content:[...imgBlocks,{type:'text',text:prompt}]}]
+      })
+    });
+    prog(65);log('データ抽出中...','ok');
+    const data=await res.json();
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    const m=txt.match(/\{[\s\S]*"days"[\s\S]*\}/);
+    if(!m)throw new Error('JSON抽出失敗: '+txt.slice(0,200));
+    days=JSON.parse(m[0]).days;
+    prog(85);log(`${days.length}営業日取得`,'ok');
+    renderResults();
+    prog(100);log('完了！','ok');
+    document.getElementById('results').className='results show';
+    setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),100);
+    ['n2','n3'].forEach(id=>{document.getElementById(id).className='step-num done';document.getElementById(id).textContent='✓'});
+  }catch(e){log('エラー: '+e.message,'ng');console.error(e);}
+  finally{document.getElementById('analyzeBtn').disabled=false;}
+}
+
+// Render
+function renderResults(){renderRawEditor();calcAndRender()}
+
+function calcAndRender(){
+  let sGN=0,sKN=0,sUN=0,sSK=0;
+  const dc=days.map(d=>{
+    const gn=(d.gb-d.gs)/10,kn=(d.kb-d.hs)/10,un=(d.ur+d.ks-d.hb)/10,sk=d.kb/10;
+    sGN+=gn;sKN+=kn;sUN+=un;sSK+=sk;
+    return{date:d.date,gn,kn,un,sk,check:gn+kn-un};
+  });
+
+  if(days.length){
+    const dd=days.map(d=>d.date);
+    document.getElementById('periodLbl').textContent=`${dd[dd.length-1]} ～ ${dd[0]}（${days.length}営業日）`;
+  }
+
+  const tot=sGN+sKN-sUN,ok=Math.abs(tot)<0.05;
+  const b=document.getElementById('chkBadge');
+  b.className='chk-badge '+(ok?'chk-ok':'chk-ng');
+  b.textContent=ok?'✓ 検算OK（a+b-c=0）':'✗ 検算エラー';
+  document.getElementById('chkDetail').textContent=ok?'':'累計差分: '+tot.toFixed(3)+'万株';
+
+  // Summary
+  document.getElementById('sumGrid').innerHTML=[
+    ['現物ネット累計',f(sGN),'万株',sGN>=0?'acc':'amb'],
+    ['買い残ネット累計',f(sKN),'万株',sKN>=0?'':'amb'],
+    ['売り残ネット累計',f(sUN),'万株',''],
+    ['新規買累計',f(sSK),'万株',''],
+  ].map(([l,v,u,c])=>`<div class="sum-card"><div class="sum-lbl">${l}</div><div class="sum-val ${c}">${v}</div><div class="sum-unit">${u}</div></div>`).join('');
+
+  // Indicators: 1,2(新規買/発行済),3(現物ネット/発行済),4,5
+  const c1=sKN!==0?(sGN/sKN).toFixed(1)+'倍':'−';
+  const c2=(sSK/sharesMan*100).toFixed(3)+'%';   // ② 新規買÷発行済
+  const c3=(sGN/sharesMan*100).toFixed(3)+'%';   // ③ 現物ネット÷発行済
+  const c4=(sKN/sharesMan*100).toFixed(3)+'%';   // ④
+  const c5=(sUN/sharesMan*100).toFixed(3)+'%';   // ⑤
+
+  document.getElementById('idxBody').innerHTML=[
+    [1,'現物ネット累計 ÷ 買い残ネット累計',c1,'c-base'],
+    [2,'新規買累計 ÷ 発行済株式数',c2,'c-acc'],
+    [3,'現物ネット累計 ÷ 発行済株式数',c3,'c-acc'],
+    [4,'買い残ネット累計 ÷ 発行済株式数',c4,parseFloat(c4)>=0?'c-acc':'c-amb'],
+    [5,'売り残ネット累計 ÷ 発行済株式数',c5,'c-amb'],
+  ].map(([n,lbl,val,cls])=>`<tr>
+    <td><span class="idx-num">${n}</span><span class="idx-label">${lbl}</span></td>
+    <td class="${cls}">${val}</td>
+  </tr>`).join('');
+
+  // Daily net
+  let nh=dc.map(d=>{const ok2=Math.abs(d.check)<0.05;return`<tr>
+    <td>${d.date}</td>
+    <td class="${d.gn>=0?'pos':'neg'}">${f(d.gn)}</td>
+    <td class="${d.kn>=0?'pos':'neg'}">${f(d.kn)}</td>
+    <td>${f(d.un)}</td>
+    <td class="${ok2?'ok-c':'ng-c'}">${ok2?'✓ 0.0':d.check.toFixed(2)}</td>
+  </tr>`}).join('');
+  nh+=`<tr class="tot"><td>${days.length}日累計</td><td class="${sGN>=0?'pos':'neg'}">${f(sGN)}</td><td class="${sKN>=0?'pos':'neg'}">${f(sKN)}</td><td>${f(sUN)}</td><td class="${ok?'ok-c':'ng-c'}">${ok?'✓ 0.0':tot.toFixed(2)}</td></tr>`;
+  document.getElementById('tbNet').innerHTML=nh;
+
+  // Daily indicators: 1,2(新規買),3(現物ネット),4,5
+  let ih=dc.map(d=>{
+    const i1=d.kn!==0?(d.gn/d.kn).toFixed(1):'−';
+    const i2=(d.sk/sharesMan*100).toFixed(3);
+    const i3=(d.gn/sharesMan*100).toFixed(3);
+    const i4=(d.kn/sharesMan*100).toFixed(3);
+    const i5=(d.un/sharesMan*100).toFixed(3);
+    return`<tr><td>${d.date}</td><td>${i1}${d.kn!==0?'倍':''}</td><td>${i2}%</td><td>${i3}%</td><td class="${parseFloat(i4)>=0?'pos':'neg'}">${i4}%</td><td>${i5}%</td></tr>`;
+  }).join('');
+  ih+=`<tr class="tot"><td>累計</td><td>${c1}</td><td>${c2}</td><td>${c3}</td><td class="${parseFloat(c4)>=0?'pos':'neg'}">${c4}</td><td>${c5}</td></tr>`;
+  document.getElementById('tbIdx').innerHTML=ih;
+}
+
+function f(v){return v.toFixed(1)}
+
+function renderRawEditor(){
+  document.getElementById('rawTbody').innerHTML=days.map((d,i)=>`<tr>
+    <td><input class="date-input" type="text" value="${d.date}" oninput="days[${i}].date=this.value"></td>
+    <td><input type="number" value="${d.gb}" step="0.1" oninput="days[${i}].gb=+this.value"></td>
+    <td><input type="number" value="${d.kb}" step="0.1" oninput="days[${i}].kb=+this.value"></td>
+    <td><input type="number" value="${d.hb}" step="0.1" oninput="days[${i}].hb=+this.value"></td>
+    <td><input type="number" value="${d.gs}" step="0.1" oninput="days[${i}].gs=+this.value"></td>
+    <td><input type="number" value="${d.ks}" step="0.1" oninput="days[${i}].ks=+this.value"></td>
+    <td><input type="number" value="${d.hs}" step="0.1" oninput="days[${i}].hs=+this.value"></td>
+    <td><input type="number" value="${d.ur}" step="0.1" oninput="days[${i}].ur=+this.value"></td>
+    <td><button onclick="days.splice(${i},1);renderResults()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:4px">×</button></td>
+  </tr>`).join('');
+}
+function toggleEd(){const e=document.getElementById('rawEd');e.className=e.className.includes('show')?'raw-editor':'raw-editor show'}
+
+function prog(p){document.getElementById('progFill').style.width=p+'%'}
+function log(msg,cls=''){
+  const b=document.getElementById('logBox');
+  const n=new Date();
+  const ts=[n.getHours(),n.getMinutes(),n.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
+  b.innerHTML+=`<div><span class="log-ts">${ts} </span><span class="${cls?'log-'+cls:''}">${msg}</span></div>`;
+  b.scrollTop=b.scrollHeight;
+}
+function setSt(id,msg,cls=''){const e=document.getElementById(id);e.textContent=msg;e.className='status '+cls}
+</script>
+</body>
+</html>
