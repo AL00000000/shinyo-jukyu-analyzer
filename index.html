@@ -160,6 +160,7 @@ table.raw td input.date-input{width:68px}
       <div class="field">
         <label>銘柄コード（4桁）</label>
         <input type="text" id="tickerCode" placeholder="例: 4062 / 5247" maxlength="10" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        <button class="btn-sm" onclick="var el=document.getElementById('tickerCode');el.value+='A';el.focus()" style="align-self:flex-start;margin-top:4px;padding:6px 14px;font-family:var(--mono);font-size:13px;font-weight:500">A</button>
       </div>
       <button class="btn" onclick="fetchShares()" id="fetchBtn" style="height:40px;margin-top:22px">
         <span id="fetchIco">🔍</span> 取得
