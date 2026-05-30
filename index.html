@@ -148,21 +148,6 @@ table.raw td input.date-input{width:68px}
 
 <div class="main">
 
-<!-- API Key -->
-<div class="card" id="cKey">
-  <div class="card-hdr">
-    <div class="step-num">🔑</div>
-    <div class="card-title">Anthropic APIキー</div>
-    <div class="card-sub">このデバイスのみに保存されます。外部には送信されません。</div>
-  </div>
-  <div class="card-body">
-    <div class="field">
-      <label>APIキー（sk-ant-...）</label>
-      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false" oninput="saveKey(this.value)">
-    </div>
-  </div>
-</div>
-
 <!-- STEP 1: Ticker -->
 <div class="card glow" id="c1">
   <div class="card-hdr">
@@ -338,13 +323,6 @@ table.raw td input.date-input{width:68px}
 const API='https://api.anthropic.com/v1/messages';
 let images=[],days=[],sharesMan=0;
 
-function saveKey(v){if(v)localStorage.setItem('claude_key',v)}
-function getKey(){return document.getElementById('apiKey').value.trim()||localStorage.getItem('claude_key')||''}
-function apiHeaders(){return{'Content-Type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}}
-
-// restore saved key
-(()=>{const k=localStorage.getItem('claude_key');if(k)document.getElementById('apiKey').value=k})();
-
 // Drag & Drop
 const dz=document.getElementById('dropzone');
 ['dragover','dragenter'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag')}));
@@ -375,8 +353,7 @@ async function fetchShares(){
   btn.disabled=true;
   document.getElementById('fetchIco').innerHTML='<span class="spin"></span>';
   try{
-    if(!getKey()){setSt('fetchSt','APIキーを入力してください','error');return;}
-    const res=await fetch(API,{method:'POST',headers:apiHeaders(),
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',max_tokens:500,
         tools:[{type:'web_search_20250305',name:'web_search'}],
@@ -447,8 +424,7 @@ date=日付, gb=現物買, kb=新規買, hb=返済買, gs=現物売, ks=新規�
 
   try{
     log('画像データを送信中...','ok');prog(25);
-    if(!getKey()){log('APIキーが未入力です','ng');return;}
-    const res=await fetch(API,{method:'POST',headers:apiHeaders(),
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
         messages:[{role:'user',content:[...imgBlocks,{type:'text',text:prompt}]}]
       })
